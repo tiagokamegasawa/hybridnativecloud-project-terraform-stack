@@ -3,14 +3,6 @@ provider "aws" {
   region = "${var.aws_region}"
 }
 
-data "template_file" "script" {
-  template = "${file("${path.module}/script.sh.tpl")}"
-  vars = {
-    ECR_REGISTRY = "${var.ECR_REGISTRY}"
-  }
-}
-
-
 variable "project" {
   default = "fiap-lab"
 }
@@ -39,10 +31,8 @@ resource "random_shuffle" "random_subnet" {
   result_count = 1
 }
 
-
-
 resource "aws_elb" "web" {
-  name = "hackton-elb"
+  name = "terraform-example-elb-${terraform.workspace}"
 
   subnets         = data.aws_subnet_ids.all.ids
   security_groups = ["${aws_security_group.allow-ssh.id}"]
@@ -70,22 +60,21 @@ resource "aws_instance" "web" {
   instance_type = "t2.micro"
   ami           = "${lookup(var.aws_amis, var.aws_region)}"
 
-  count = 1
+  count = 2
 
   subnet_id              = "${random_shuffle.random_subnet.result[0]}"
   vpc_security_group_ids = ["${aws_security_group.allow-ssh.id}"]
   key_name               = "${var.KEY_NAME}"
-  iam_instance_profile   = "${aws_iam_instance_profile.ecr_readOnly_profile.name}"
 
   provisioner "file" {
-    content      = "${data.template_file.script.rendered}"
-    destination = "$(pwd)/script.sh"
+    source      = "script.sh"
+    destination = "/tmp/script.sh"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x $(pwd)/script.sh",
-      "sudo bash $(pwd)/script.sh"
+      "chmod +x /tmp/script.sh",
+      "sudo /tmp/script.sh",
     ]
   }
 
@@ -96,6 +85,6 @@ resource "aws_instance" "web" {
   }
 
   tags = {
-    Name = "${format("nginx-hackaton-%03d", count.index + 1)}"
+    Name = "${format("nginx-%03d", count.index + 1)}"
   }
 }
