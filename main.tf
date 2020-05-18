@@ -85,6 +85,6 @@ resource "aws_instance" "web" {
   }
 
   tags = {
-    Name = "${format("nginx-%03d", count.index + 1)}"
+    Name = "${format("nginx-${terraform.workspace}-%03d", count.index + 1)}"
   }
 }
